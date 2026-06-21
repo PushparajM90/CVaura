@@ -12,15 +12,9 @@ function setCopyright(id, name) {
 document.addEventListener("DOMContentLoaded", function () {
   setCopyright("copy_rights_element", "Pushparaj.M Portfolio Website");
 
-  (function () {
-    emailjs.init({
-      publicKey: "NagH5tRuSAjvWj56m",
-    });
-  })();
-
   document
     .getElementById("feedbackForm")
-    .addEventListener("submit", function (event) {
+    .addEventListener("submit", async function (event) {
       event.preventDefault();
       var preloader_ele = document.getElementById("preloader");
       preloader_ele.style.display = "flex";
@@ -31,12 +25,20 @@ document.addEventListener("DOMContentLoaded", function () {
         "recipient_from_email",
       );
       var end_user_message_ele = document.getElementById("end_user_message");
+      var emailjsConfig = await import("/src/config/emailjsConfig.js");
+      var account = emailjsConfig.EMAILJS_ACCOUNT_1;
+
       emailjs
-        .send("service_0ek3p4d", "template_ikmroyv", {
-          name: recipient_from_name_ele.value,
-          email: recipient_from_email_ele.value,
-          message: end_user_message_ele.value,
-        })
+        .send(
+          account.serviceId,
+          account.feedbackTemplateId,
+          {
+            name: recipient_from_name_ele.value,
+            email: recipient_from_email_ele.value,
+            message: end_user_message_ele.value,
+          },
+          account.publicKey,
+        )
         // dummyLog()
         .then(
           function (response) {

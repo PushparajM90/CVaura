@@ -874,6 +874,259 @@
   color: var(--text-muted);
 }
 
+.resume-gate-overlay {
+  background: color-mix(in srgb, var(--bg) 34%, transparent);
+}
+
+.resume-gate-card {
+  --resume-gate-purple: #534ab7;
+  --resume-gate-purple-dark: #40368f;
+  --resume-gate-teal: #13b7aa;
+  --resume-gate-coral: #ef735f;
+  --resume-gate-danger: #e05b5b;
+  --resume-gate-button-text: #f8fbff;
+
+  position: relative;
+  width: min(420px, calc(100vw - 34px));
+  overflow: hidden;
+  padding: 30px;
+  border: 1px solid var(--border-strong);
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text-main);
+  box-shadow: var(--shadow-soft);
+  animation: projectModalIn 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.resume-gate-accent {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 6px;
+  background: linear-gradient(
+    90deg,
+    var(--resume-gate-purple),
+    var(--resume-gate-teal),
+    var(--resume-gate-coral)
+  );
+}
+
+.resume-gate-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-glass) 82%, transparent);
+  color: var(--text-strong);
+  font-size: 1.32rem;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
+}
+
+.resume-gate-close:hover:not(:disabled) {
+  transform: rotate(90deg);
+  border-color: var(--resume-gate-purple);
+  background: color-mix(
+    in srgb,
+    var(--resume-gate-purple) 14%,
+    var(--surface)
+  );
+}
+
+.resume-gate-close:disabled {
+  cursor: wait;
+  opacity: 0.56;
+}
+
+.resume-gate-intro {
+  display: grid;
+  gap: 10px;
+  padding-right: 28px;
+}
+
+.resume-gate-intro h3,
+.resume-gate-success h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--heading-font);
+  font-size: 1.42rem;
+  line-height: 1.2;
+  letter-spacing: 0;
+}
+
+.resume-gate-intro p,
+.resume-gate-footer,
+.resume-gate-success p {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.resume-gate-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 18px 0 22px;
+}
+
+.resume-gate-badges span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0.38rem 0.62rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-glass) 76%, transparent);
+  color: var(--text-main);
+  font-size: 0.84rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.resume-gate-form {
+  display: grid;
+  gap: 15px;
+}
+
+.resume-gate-field {
+  display: grid;
+  gap: 7px;
+}
+
+.resume-gate-field label,
+.resume-gate-label-row {
+  color: var(--text-strong);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.resume-gate-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.resume-gate-label-row span {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.resume-gate-field input {
+  width: 100%;
+  min-height: 46px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 0.82rem 0.9rem;
+  background: var(--input-surface);
+  color: var(--text-main);
+  outline: none;
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background 180ms ease;
+}
+
+.resume-gate-field input::placeholder {
+  color: color-mix(in srgb, var(--text-muted) 78%, transparent);
+}
+
+.resume-gate-field input:focus {
+  border-color: var(--resume-gate-purple);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--resume-gate-purple) 24%, transparent);
+}
+
+.resume-gate-field input.is-invalid {
+  border-color: var(--resume-gate-danger);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--resume-gate-danger) 18%, transparent);
+}
+
+.field-error {
+  margin: 0;
+  color: var(--resume-gate-danger);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.resume-gate-submit {
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  margin-top: 2px;
+  border-radius: 8px;
+  transition:
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.resume-gate-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.resume-gate-submit:disabled {
+  cursor: wait;
+  opacity: 0.64;
+  transform: none;
+}
+
+.resume-gate-submit:disabled:hover {
+  transform: none;
+  box-shadow: 0 16px 40px rgba(10, 21, 29, 0.28);
+}
+
+.resume-gate-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid
+    color-mix(in srgb, var(--resume-gate-button-text) 36%, transparent);
+  border-top-color: var(--resume-gate-button-text);
+  border-radius: 999px;
+  animation: resumeGateSpin 720ms linear infinite;
+}
+
+.resume-gate-footer {
+  margin-top: 16px;
+  font-size: 0.86rem;
+}
+
+.resume-gate-success {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 22px 0 8px;
+  text-align: center;
+}
+
+.resume-gate-check {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--resume-gate-teal) 16%, transparent);
+  color: var(--resume-gate-teal);
+  font-size: 2.6rem;
+}
+
+@keyframes resumeGateSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes modalOverlayIn {
   from {
     opacity: 0;

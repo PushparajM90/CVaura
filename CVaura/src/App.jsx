@@ -13,14 +13,14 @@ import * as am5plugins_exporting from "@amcharts/amcharts5/plugins/exporting";
 import am5themes_Animated from "@amcharts/amcharts5/themes/Animated";
 import emailjs from "@emailjs/browser";
 import Swal from "sweetalert2";
+import { EMAILJS_ACCOUNT_1, EMAILJS_ACCOUNT_2 } from "./config/emailjsConfig";
 import "sweetalert2/dist/sweetalert2.min.css";
 import "./App.css";
 
 const SHEET_ID = "1ZnIgvXhhld9W1F6TgqpRCLt1mULRRxlPb5hntLYxJzU";
-const EMAILJS_PUBLIC_KEY = "NagH5tRuSAjvWj56m";
-const EMAILJS_SERVICE_ID = "service_0ek3p4d";
-const EMAILJS_TEMPLATE_ID = "template_ikmroyv";
 const RESUME_DOWNLOAD_FILENAME = "Pushparaj_Murugesan_Resume.pdf";
+const RECRUITER_NAME_MAX_LENGTH = 60;
+const WORK_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 const NAV_ITEMS = [
   { id: "home", label: "Home" },
@@ -376,18 +376,25 @@ function resolveGoogleDocsPdfUrl(url) {
     return "";
   }
 
-  try {
-    const parsedUrl = new URL(trimmedUrl);
-    const documentId = parsedUrl.pathname.match(/\/document\/d\/([^/]+)/)?.[1];
+  const documentId = trimmedUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
 
-    if (parsedUrl.hostname === "docs.google.com" && documentId) {
-      return `https://docs.google.com/document/d/${documentId}/export?format=pdf`;
-    }
-  } catch {
-    return trimmedUrl;
+  if (documentId) {
+    return `https://docs.google.com/document/d/${documentId}/export?format=pdf`;
   }
 
   return trimmedUrl;
+}
+
+function triggerResumeDownload(url) {
+  const downloadLink = document.createElement("a");
+
+  downloadLink.href = url;
+  downloadLink.target = "_blank";
+  downloadLink.rel = "noreferrer";
+  downloadLink.download = RESUME_DOWNLOAD_FILENAME;
+  document.body.append(downloadLink);
+  downloadLink.click();
+  downloadLink.remove();
 }
 
 function normalizeContacts(data) {
@@ -685,7 +692,7 @@ function usePortfolioData() {
   const [contacts, setContacts] = useState(DEFAULT_CONTACTS);
   const [labels, setLabels] = useState(DEFAULT_LABELS);
   const [emojiPresets, setEmojiPresets] = useState(DEFAULT_EMOJI_PRESETS);
-  const [resumeLink, setResumeLink] = useState("");
+  const [resumeDownloadUrl, setResumeDownloadUrl] = useState("");
   const [experience, setExperience] = useState(DEFAULT_EXPERIENCE);
   const [isExperienceLoading, setIsExperienceLoading] = useState(true);
   const [experienceError, setExperienceError] = useState("");
@@ -733,7 +740,11 @@ function usePortfolioData() {
           const normalized = normalizeContacts(contactData);
           setContacts(normalized.contacts);
           setLabels(normalized.labels);
-          setResumeLink(getPersonalDetailValue(contactData, "resume_link"));
+          setResumeDownloadUrl(
+            resolveGoogleDocsPdfUrl(
+              getPersonalDetailValue(contactData, "resume_link"),
+            ),
+          );
           setKeyHighlights(keyHighlightsData);
           setExperience(experienceData);
           setProjectsData(projectsApiData);
@@ -767,6 +778,7 @@ function usePortfolioData() {
           setKeyHighlights([]);
           setKeyHighlightsError("Unable to load highlights right now.");
           setIsKeyHighlightsLoading(false);
+          setResumeDownloadUrl("");
         });
       }
     }
@@ -783,7 +795,7 @@ function usePortfolioData() {
     contacts,
     labels,
     emojiPresets,
-    resumeLink,
+    resumeDownloadUrl,
     experience,
     isExperienceLoading,
     experienceError,
@@ -1235,7 +1247,6 @@ function EducationChart({ data, theme, title }) {
   const isMobileChart = useMediaQuery("(max-width: 760px)");
 
   useEffect(() => {
-    const styles = getComputedStyle(document.documentElement);
     const chartOutlineColor = "#151b1116"; // 10% opacity black for outline
     const uniqueChartColors = generateUniqueColors(data.length, theme);
 
@@ -1390,7 +1401,7 @@ function App() {
     contacts,
     labels,
     emojiPresets,
-    resumeLink,
+    resumeDownloadUrl,
     experience,
     isExperienceLoading,
     experienceError,
@@ -1476,6 +1487,15 @@ function App() {
     recipient_from_email: "",
     end_user_message: "",
   });
+  const [resumeGateOpen, setResumeGateOpen] = useState(false);
+  const [resumeGateStep, setResumeGateStep] = useState("form");
+  const [resumeGateForm, setResumeGateForm] = useState({
+    recruiter_name: "",
+    recruiter_email: "",
+  });
+  const [resumeGateTouched, setResumeGateTouched] = useState({});
+  const [resumeGateSubmitted, setResumeGateSubmitted] = useState(false);
+  const [resumeGateSubmitting, setResumeGateSubmitting] = useState(false);
   const [mailState, setMailState] = useState({ status: "idle", message: "" });
   const { activeSection, scrollProgress, setActiveSection } = useScrollSpy();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(true);
@@ -1483,10 +1503,19 @@ function App() {
   const lastScrollYRef = useRef(0);
   const ignoreMobileScrollUntilRef = useRef(0);
   const profileCoverImage = updateProfileImage(theme);
-
-  useEffect(() => {
-    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
-  }, []);
+  const recruiterName = resumeGateForm.recruiter_name.trim();
+  const recruiterEmail = resumeGateForm.recruiter_email.trim();
+  const isRecruiterNameValid = recruiterName.length > 0;
+  const isRecruiterEmailValid = WORK_EMAIL_PATTERN.test(recruiterEmail);
+  const canSubmitResumeGate =
+    isRecruiterNameValid && isRecruiterEmailValid && !resumeGateSubmitting;
+  const shouldShowNameError =
+    !isRecruiterNameValid &&
+    (resumeGateTouched.recruiter_name || resumeGateSubmitted);
+  const shouldShowEmailError =
+    !isRecruiterEmailValid &&
+    (resumeGateTouched.recruiter_email || resumeGateSubmitted);
+  const recruiterFirstName = recruiterName.split(/\s+/)[0] || "there";
 
   useEffect(() => {
     Object.values(PROFILE_COVER_IMAGES).forEach((src) => {
@@ -1494,6 +1523,28 @@ function App() {
       image.src = src;
     });
   }, []);
+
+  useEffect(() => {
+    if (!resumeGateOpen) {
+      return undefined;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape" && !resumeGateSubmitting) {
+        setResumeGateOpen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [resumeGateOpen, resumeGateSubmitting]);
 
   useEffect(() => {
     if (mailState.status !== "success") {
@@ -1601,11 +1652,8 @@ function App() {
     });
   };
 
-  const handleResumeDownload = (event) => {
-    const resumePdfUrl = resolveGoogleDocsPdfUrl(resumeLink);
-
-    if (!resumePdfUrl) {
-      event.preventDefault();
+  const handleResumeDownloadClick = () => {
+    if (!resumeDownloadUrl) {
       showMailNotification({
         status: "error",
         title: "Resume not available",
@@ -1614,13 +1662,84 @@ function App() {
       return;
     }
 
-    window.setTimeout(() => {
-      showMailNotification({
-        status: "success",
-        title: "Resume downloaded",
-        message: `${RESUME_DOWNLOAD_FILENAME} has been downloaded successfully.`,
-      });
-    }, 600);
+    setResumeGateForm({
+      recruiter_name: "",
+      recruiter_email: "",
+    });
+    setResumeGateTouched({});
+    setResumeGateSubmitted(false);
+    setResumeGateStep("form");
+    setResumeGateSubmitting(false);
+    setResumeGateOpen(true);
+  };
+
+  const handleResumeGateInputChange = (event) => {
+    const { name, value } = event.target;
+    const nextValue =
+      name === "recruiter_name"
+        ? value.slice(0, RECRUITER_NAME_MAX_LENGTH)
+        : value;
+
+    setResumeGateForm((current) => ({ ...current, [name]: nextValue }));
+  };
+
+  const handleResumeGateBlur = (event) => {
+    setResumeGateTouched((current) => ({
+      ...current,
+      [event.target.name]: true,
+    }));
+  };
+
+  const handleResumeGateSubmit = async (event) => {
+    event.preventDefault();
+    setResumeGateSubmitted(true);
+
+    if (!isRecruiterNameValid || !isRecruiterEmailValid || !resumeDownloadUrl) {
+      return;
+    }
+
+    setResumeGateSubmitting(true);
+
+    const downloadTime = new Date().toLocaleString("en-IN", {
+      timeZone: "Asia/Kolkata",
+    });
+
+    const templateParams = {
+      recruiter_name: recruiterName,
+      recruiter_email: recruiterEmail,
+      to_email: recruiterEmail,
+      reply_to: recruiterEmail,
+      download_time: downloadTime,
+      user_agent: navigator.userAgent,
+      page_url: window.location.href,
+    };
+
+    const results = await Promise.allSettled([
+      emailjs.send(
+        EMAILJS_ACCOUNT_2.serviceId,
+        EMAILJS_ACCOUNT_2.downloadTemplateId,
+        templateParams,
+        EMAILJS_ACCOUNT_2.publicKey,
+      ),
+      emailjs.send(
+        EMAILJS_ACCOUNT_2.serviceId,
+        EMAILJS_ACCOUNT_2.downloadAutoReplyTemplateId,
+        templateParams,
+        EMAILJS_ACCOUNT_2.publicKey,
+      ),
+    ]);
+
+    const failedResult = results.find((result) => result.status === "rejected");
+
+    if (failedResult) {
+      console.error("EmailJS resume notification failed", failedResult.reason);
+    } else {
+      console.log("Resume download notifications sent.");
+    }
+
+    setResumeGateStep("success");
+    setResumeGateSubmitting(false);
+    triggerResumeDownload(resumeDownloadUrl);
   };
 
   const handleInputChange = (event) => {
@@ -1664,11 +1783,25 @@ function App() {
     setMailState({ status: "loading", message: "Sending your message..." });
 
     try {
-      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+      const templateParams = {
         name: form.recipient_from_name,
         email: form.recipient_from_email,
         message: form.end_user_message,
-      });
+      };
+
+      await emailjs.send(
+        EMAILJS_ACCOUNT_1.serviceId,
+        EMAILJS_ACCOUNT_1.feedbackTemplateId,
+        templateParams,
+        EMAILJS_ACCOUNT_1.publicKey,
+      );
+
+      await emailjs.send(
+        EMAILJS_ACCOUNT_1.serviceId,
+        EMAILJS_ACCOUNT_1.feedbackAutoReplyTemplateId,
+        templateParams,
+        EMAILJS_ACCOUNT_1.publicKey,
+      );
 
       setForm({
         recipient_from_name: "",
@@ -1802,19 +1935,20 @@ function App() {
               operational efficiency.
             </p>
             <div className="hero-actions">
-              <a
-                className="primary-button"
-                href={resolveGoogleDocsPdfUrl(resumeLink) || "#home"}
-                download={RESUME_DOWNLOAD_FILENAME}
-                onClick={handleResumeDownload}
-                aria-label="Download resume as a PDF"
-              >
-                <div
-                  className="resume-download-icon i-line-md:downloading-loop  w-48px h-48px"
-                  aria-hidden="true"
-                />
-                <span>Download Resume</span>
-              </a>
+              {resumeDownloadUrl ? (
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={handleResumeDownloadClick}
+                  aria-label="Download resume as a PDF"
+                >
+                  <div
+                    className="resume-download-icon i-line-md:downloading-loop  w-48px h-48px"
+                    aria-hidden="true"
+                  />
+                  <span>Download Resume</span>
+                </button>
+              ) : null}
               <button
                 type="button"
                 className="secondary-button"
@@ -2290,6 +2424,162 @@ function App() {
             </div>
           </div>
         </section>
+
+        {resumeGateOpen ? (
+          <div
+            className="modal-overlay resume-gate-overlay"
+            role="presentation"
+            onClick={(event) => {
+              if (
+                event.target === event.currentTarget &&
+                !resumeGateSubmitting
+              ) {
+                setResumeGateOpen(false);
+              }
+            }}
+          >
+            <div
+              className="resume-gate-card"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="resume-gate-title"
+            >
+              <div className="resume-gate-accent" aria-hidden="true" />
+              <button
+                type="button"
+                className="resume-gate-close"
+                onClick={() => setResumeGateOpen(false)}
+                disabled={resumeGateSubmitting}
+                aria-label="Close resume download form"
+              >
+                &times;
+              </button>
+
+              {resumeGateStep === "success" ? (
+                <div className="resume-gate-success" role="status">
+                  <div className="resume-gate-check" aria-hidden="true">
+                    <iconify-icon icon="line-md:confirm-circle" />
+                  </div>
+                  <h3 id="resume-gate-title">Thanks, {recruiterFirstName}!</h3>
+                  <p>
+                    Your download is starting. I've also sent a quick note to{" "}
+                    {recruiterEmail} - look forward to connecting!
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="resume-gate-intro">
+                    <h3 id="resume-gate-title">
+                      One last step to grab my resume
+                    </h3>
+                    <p>
+                      Drop your details below - I'll send you a personal
+                      thank-you and you'll be first on my radar for exciting
+                      opportunities.
+                    </p>
+                  </div>
+
+                  <div className="resume-gate-badges" aria-label="Resume perks">
+                    <span>⚡ Instant download</span>
+                    <span>📩 Personal reply from me</span>
+                    <span>🔒 No spam, ever</span>
+                  </div>
+
+                  <form
+                    className="resume-gate-form"
+                    onSubmit={handleResumeGateSubmit}
+                    noValidate
+                  >
+                    <div className="resume-gate-field">
+                      <div className="resume-gate-label-row">
+                        <label htmlFor="recruiter_name">Name</label>
+                        <span>
+                          {resumeGateForm.recruiter_name.length}/
+                          {RECRUITER_NAME_MAX_LENGTH}
+                        </span>
+                      </div>
+                      <input
+                        id="recruiter_name"
+                        name="recruiter_name"
+                        type="text"
+                        maxLength={RECRUITER_NAME_MAX_LENGTH}
+                        value={resumeGateForm.recruiter_name}
+                        onChange={handleResumeGateInputChange}
+                        onBlur={handleResumeGateBlur}
+                        className={shouldShowNameError ? "is-invalid" : ""}
+                        aria-invalid={shouldShowNameError}
+                        aria-describedby={
+                          shouldShowNameError
+                            ? "recruiter-name-error"
+                            : undefined
+                        }
+                        placeholder="Your full name"
+                        required
+                      />
+                      {shouldShowNameError ? (
+                        <p id="recruiter-name-error" className="field-error">
+                          Please enter your name.
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="resume-gate-field">
+                      <label htmlFor="recruiter_email">Work Email</label>
+                      <input
+                        id="recruiter_email"
+                        name="recruiter_email"
+                        type="email"
+                        value={resumeGateForm.recruiter_email}
+                        onChange={handleResumeGateInputChange}
+                        onBlur={handleResumeGateBlur}
+                        className={shouldShowEmailError ? "is-invalid" : ""}
+                        aria-invalid={shouldShowEmailError}
+                        aria-describedby={
+                          shouldShowEmailError
+                            ? "recruiter-email-error"
+                            : undefined
+                        }
+                        placeholder="you@company.com"
+                        required
+                      />
+                      {shouldShowEmailError ? (
+                        <p id="recruiter-email-error" className="field-error">
+                          Enter a valid work email address.
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="primary-button resume-gate-submit"
+                      disabled={!canSubmitResumeGate}
+                    >
+                      {resumeGateSubmitting ? (
+                        <>
+                          <span className="resume-gate-spinner" />
+                          <span>Preparing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <div
+                            className="resume-download-icon i-line-md:downloading-loop  w-48px h-48px"
+                            aria-hidden="true"
+                          />
+                          <span>Download Resume</span>
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  <p className="resume-gate-footer">
+                    Your info is only used to send you a thank-you. No marketing
+                    lists.
+                  </p>
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
       </main>
     </div>
   );
