@@ -369,20 +369,8 @@ function resolveContactHref(id, value) {
   return `https://${value}`;
 }
 
-function resolveGoogleDocsPdfUrl(url) {
-  const trimmedUrl = String(url || "").trim();
-
-  if (!trimmedUrl) {
-    return "";
-  }
-
-  const documentId = trimmedUrl.match(/\/d\/([a-zA-Z0-9_-]+)/)?.[1];
-
-  if (documentId) {
-    return `https://docs.google.com/document/d/${documentId}/export?format=pdf`;
-  }
-
-  return trimmedUrl;
+function normalizeResumeDownloadUrl(url) {
+  return String(url || "").trim();
 }
 
 function triggerResumeDownload(url) {
@@ -741,7 +729,7 @@ function usePortfolioData() {
           setContacts(normalized.contacts);
           setLabels(normalized.labels);
           setResumeDownloadUrl(
-            resolveGoogleDocsPdfUrl(
+            normalizeResumeDownloadUrl(
               getPersonalDetailValue(contactData, "resume_link"),
             ),
           );
